@@ -1,0 +1,96 @@
+
+
+
+```{r message=FALSE}
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(vtreat, quietly = TRUE)
+library(tidyverse, quietly = TRUE)
+library(WVPlots, quietly = TRUE)
+library(mgcv)
+```
+
+```{r}
+# Inputs
+hoursHW <- c(   01, 02, 04, 05, 06, 07, 08, 08, 09, 10,
+                11, 12, 16, 18, 20, 20, 20, 21, 21, 22, 
+                24, 24, 24, 24, 25, 27, 28, 29, 30, 30)
+
+error <- round(runif(30, 0, 30), digits=0)
+
+
+# Output
+schoolAnx <- c( 04, 10, 10, 11, 13, 20, 16, 14, 10, 13,
+                19, 21, 10, 20, 40, 42, 47, 80, 65, 72,
+                72, 75, 73, 19, 75, 80, 82, 78, 95, 81)
+
+
+# Dataframe
+SDF <- data.frame(hoursHW, schoolAnx)
+tail(SDF)
+
+ggplot(SDF, aes(x = hoursHW, y = schoolAnx)) +
+    geom_point()
+
+model <- gam(schoolAnx ~ s(hoursHW), data = SDF, family = gaussian)
+
+summary(model)
+
+plot(model)
+```
+
+1.0.2  The plot above depicts the polynomial spline of the general additive model
+
+1.0.3  Predict with GAM
+
+```{r}
+# Get predictions from linear model
+modelLM <- lm(schoolAnx ~ hoursHW, data = SDF)
+SDF$predLM <- predict(modelLM, newdata = SDF)
+
+# Get predictions from gam model
+SDF$predGAM <- predict(model, newdata = SDF)
+
+# Gather the predictions into a "long" dataset
+SDF_long <- SDF %>%
+    gather(key = modeltype, value = predictions, predGAM, predLM)
+
+head(SDF_long, 3)
+
+# Calculate the RMSE
+SDF_long %>%
+    mutate(residual = schoolAnx - predictions) %>%
+    group_by(modeltype) %>%
+    summarize(rmse = sqrt(mean(residual^2)))
+```
+
+The RMSE ("Root Mean Squared Error") is a measure of the model fit to the data. A lower RMSE is generally associated with a better model. Here, we see that the predictions the GAM (General Additive Model) makes is better than the predictions the linear model makes. Our GAM model is the way to go!
+
+```{r}
+
+# Compare predictions against actual anxiety levels
+SDF_long %>%
+    ggplot(aes(x = hoursHW)) +
+    geom_point(aes(y = schoolAnx)) +
+    geom_point(aes(y = predictions, color = modeltype)) +
+    geom_line(aes(y = predictions, color = modeltype, linetype = modeltype))+
+    scale_color_brewer(palette = "Dark2")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
